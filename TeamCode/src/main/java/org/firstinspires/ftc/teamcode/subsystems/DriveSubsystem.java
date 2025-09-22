@@ -1,4 +1,5 @@
 package org.firstinspires.ftc.teamcode.subsystems;
+<<<<<<< Updated upstream
 
 import static org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion.telemetry;
 import static org.firstinspires.ftc.teamcode.subsystems.DriveSubsystem.DriveConstants.FieldOriented;
@@ -10,21 +11,37 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
+=======
+import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+>>>>>>> Stashed changes
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
-
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.teamcode.utils.TelemetryUtils;
+import org.firstinspires.ftc.teamcode.utils.Utils;
+import org.firstinspires.ftc.teamcode.utils.PIDController;
 
+@Config
+public class DriveSubsystem {
+    private static IMU imu;
+    private static DcMotorEx lf,rf,lb,rb;
+    private static PIDController headingPID;
+    private static double targetHeading = 0.0; // radians
 
-public class
-DriveSubsystem {
-    private static IMU gyro;
-    static DcMotor left_front_motor;
-    static DcMotor left_back_motor;
-    static DcMotor right_front_motor;
-    static DcMotor right_back_motor;
+    public static Boolean reverseDirections = true;
+    public static Boolean FieldOriented = true;
+    public static double SpeedModifier = 1.0;
+    public static double Deadband = 0.05;
+    // PID coefficients (currently only for heading not position)
+    public static double kP = 0.01;
+    public static double kI = 0.0;
+    public static double kD = 0.0005;
 
+<<<<<<< Updated upstream
     @Configurable
     public static class DriveConstants {
         public static Boolean reverseDirections = true;
@@ -41,6 +58,20 @@ DriveSubsystem {
         right_back_motor = hwMap.get(DcMotor.class, "right_back_motor");
         gyro = hwMap.get(IMU.class, "gyro");
         gyro.initialize(
+=======
+    public static void initialize(HardwareMap hwMap, Telemetry telemetry) {
+        lf = hwMap.get(DcMotorEx.class, "left_front_motor");
+        rf = hwMap.get(DcMotorEx.class, "right_front_motor");
+        lb = hwMap.get(DcMotorEx.class, "left_back_motor");
+        rb = hwMap.get(DcMotorEx.class, "right_back_motor");
+        imu = hwMap.get(IMU.class, "gyro");
+        // Initialize the heading PID controller
+        headingPID = new PIDController(kP, kI, kD, true);
+        headingPID.setOutputLimits(-1, 1);
+        targetHeading = 0.0;
+        // IMU parameters
+        imu.initialize(
+>>>>>>> Stashed changes
                 new IMU.Parameters(
                         new RevHubOrientationOnRobot(
                                 RevHubOrientationOnRobot.LogoFacingDirection.UP,
@@ -48,50 +79,86 @@ DriveSubsystem {
                         )
                 )
         );
+<<<<<<< Updated upstream
+=======
+        lf.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        rf.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        lb.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
+        rb.setZeroPowerBehavior(DcMotorEx.ZeroPowerBehavior.BRAKE);
 
-        if (!reverseDirections) {
-            right_front_motor.setDirection(DcMotorSimple.Direction.REVERSE);
-            right_back_motor.setDirection(DcMotorSimple.Direction.REVERSE);
+        // disables the default velocity control
+        // this does NOT disable the encoder from counting,
+        // but lets us simply send raw motor power.
+        lf.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+        rf.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+        lb.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+        rb.setMode(DcMotorEx.RunMode.RUN_WITHOUT_ENCODER);
+
+>>>>>>> Stashed changes
+
+        if (reverseDirections) {
+            lf.setDirection(DcMotorEx.Direction.REVERSE);
+            lb.setDirection(DcMotorEx.Direction.REVERSE);
         } else {
-            left_front_motor.setDirection(DcMotorSimple.Direction.REVERSE);
-            left_back_motor.setDirection(DcMotorSimple.Direction.REVERSE);
+            rf.setDirection(DcMotorEx.Direction.REVERSE);
+            rb.setDirection(DcMotorEx.Direction.REVERSE);
         }
     }
     public void handleControllerInput(Gamepad gamepad) {
-        // Mecanum drive i controlled with three axes: drive (front-and-back),
-        // strafe (left-and-right), and twist (rotating the whole chassis).
-        double drive  = -gamepad.left_stick_x;
-        double strafe = gamepad.left_stick_y;
-        double twist  = -gamepad.right_stick_x;
-        double denominator = Math.max(Math.abs(drive) + Math.abs(strafe) + Math.abs(twist), 1);
-
-        if (!FieldOriented) {
-            //robot-oriented
-            double left_front_power = DriveConstants.SpeedModifier * (drive + strafe + twist) / denominator;
-            double right_front_power = DriveConstants.SpeedModifier * (drive - strafe - twist) / denominator;
-            double left_back_power = DriveConstants.SpeedModifier * (drive - strafe + twist) / denominator;
-            double right_back_power = DriveConstants.SpeedModifier * (drive + strafe - twist) / denominator;
-
-            left_front_motor.setPower(left_front_power);
-            right_front_motor.setPower(right_front_power);
-            left_back_motor.setPower(left_back_power);
-            right_back_motor.setPower((right_back_power));
+        headingPID.setGains(kP, kI, kD);
+        double rawDrive  = -gamepad.left_stick_y;   // forward/backward
+        double rawStrafe =  gamepad.left_stick_x;   // left/right
+        double rawTwist  = -gamepad.right_stick_x;  // rotation
+        // Apply deadband
+        double drive = Utils.applyDeadband(rawDrive, Deadband);
+        double strafe = Utils.applyDeadband(rawStrafe, Deadband);
+        double twist  = Utils.applyDeadband(rawTwist, Deadband);
+        // If driver is actively rotating, update target heading
+        if (Math.abs(twist) > 0.05) {
+            targetHeading = getHeading();
         } else {
-            //field-oriented
-            double botHeading = getHeading();
-            // Rotate the movement direction counter to the bot's rotation
-            double rotX = drive * Math.cos(-botHeading) - strafe * Math.sin(-botHeading);
-            double rotY = drive * Math.sin(-botHeading) + strafe * Math.cos(-botHeading);
-            double frontLeftPower = DriveConstants.SpeedModifier * (rotY + rotX + twist) / denominator;
-            double backLeftPower = DriveConstants.SpeedModifier * (rotY - rotX + twist) / denominator;
-            double frontRightPower = DriveConstants.SpeedModifier * (rotY - rotX - twist) / denominator;
-            double backRightPower = DriveConstants.SpeedModifier * (rotY + rotX - twist) / denominator;
-            // set the power of the motors
-            left_front_motor.setPower(frontLeftPower);
-            left_back_motor.setPower(backLeftPower);
-            right_front_motor.setPower(frontRightPower);
-            right_back_motor.setPower(backRightPower);
+            // Use PID to hold heading
+            twist = headingPID.output(targetHeading, getHeading());
+        }
 
+        // Normalize
+        double denominator = Math.max(Math.abs(drive) + Math.abs(strafe) + Math.abs(twist), 1);
+        if (!FieldOriented) {
+            // robot-oriented (no gyro correction)
+            double left_front_input  = SpeedModifier * (drive + strafe + twist) / denominator;
+            double right_front_input = SpeedModifier * (drive - strafe - twist) / denominator;
+            double left_back_input   = SpeedModifier * (drive - strafe + twist) / denominator;
+            double right_back_input  = SpeedModifier * (drive + strafe - twist) / denominator;
+
+            lf.setPower(left_front_input);
+            rf.setPower(right_front_input);
+            lb.setPower(left_back_input);
+            rb.setPower(right_back_input);
+        } else {
+            // field-oriented (rotate inputs by current heading)
+            double botHeading = getHeading();
+            double rotX = strafe * Math.cos(-botHeading) - drive * Math.sin(-botHeading);
+            double rotY = strafe * Math.sin(-botHeading) + drive * Math.cos(-botHeading);
+            double frontLeftPower  = SpeedModifier * (rotY + rotX + twist) / denominator;
+            double backLeftPower   = SpeedModifier * (rotY - rotX + twist) / denominator;
+            double frontRightPower = SpeedModifier * (rotY - rotX - twist) / denominator;
+            double backRightPower  = SpeedModifier * (rotY + rotX - twist) / denominator;
+
+            lf.setPower(frontLeftPower);
+            lb.setPower(backLeftPower);
+            rf.setPower(frontRightPower);
+            rb.setPower(backRightPower);
+        }
+
+        // Telemetry
+        TelemetryUtils.addData("Heading", getHeading());
+        TelemetryUtils.addData("TargetHeading", targetHeading);
+        TelemetryUtils.addData("PID Twist", twist);
+
+        if (gamepad.back) { // reset heading on back button
+            resetHeading();
+            targetHeading = 0.0;
+            headingPID.reset();
         }
     }
 
@@ -99,10 +166,10 @@ DriveSubsystem {
     }
 
     public static double getHeading() {
-        return gyro.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
+        return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     }
 
     public void resetHeading() {
-        gyro.resetYaw();
+        imu.resetYaw();
     }
 }
