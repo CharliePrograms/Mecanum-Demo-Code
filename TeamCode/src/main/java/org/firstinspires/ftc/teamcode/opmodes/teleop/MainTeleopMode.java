@@ -12,16 +12,14 @@ import org.firstinspires.ftc.teamcode.utils.TelemetryUtils;
 public class MainTeleopMode extends OpMode {
 
     DriveSubsystem drive_base = new DriveSubsystem();
-    TestArmSubsystem arm = new TestArmSubsystem();
-    TestTurretSubsystem turret = new TestTurretSubsystem();
+//    TestArmSubsystem arm = new TestArmSubsystem();
+//    TestTurretSubsystem turret = new TestTurretSubsystem();
 
 
     @Override
     public void init() {
-        drive_base.initialize(hardwareMap, telemetry);
-        arm.initialize(hardwareMap, telemetry);
-        turret.initialize(hardwareMap, telemetry);
-        TelemetryUtils.initialize(telemetry); // pass the OpMode telemetry
+        drive_base.initialize(hardwareMap);
+        TelemetryUtils.initialize(telemetry);
     }
 
     @Override

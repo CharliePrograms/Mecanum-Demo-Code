@@ -6,7 +6,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.Gamepad;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
-import org.firstinspires.ftc.robotcore.external.Telemetry;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.teamcode.utils.TelemetryUtils;
 import org.firstinspires.ftc.teamcode.utils.Utils;
@@ -14,22 +14,22 @@ import org.firstinspires.ftc.teamcode.utils.PIDController;
 
 @Config
 public class DriveSubsystem {
-    private static IMU imu;
-    private static DcMotorEx lf, rf, lb, rb;
-    private static PIDController headingPID;
-    private static double targetHeading = 0.0; // radians
+    private IMU imu;
+    private DcMotorEx lf, rf, lb, rb;
+    private PIDController headingPID;
+    private double targetHeading = 0.0; // radians
+    private boolean wasTwisting = false; // It's often better to make this private
     // dashboard-tunable variables
     public static Boolean reverseDirections = true;
     public static Boolean FieldOriented = true;
     public static double SpeedModifier = 1.0;
     public static double Deadband = 0.05;
-    static boolean wasTwisting = false;
     // PID coefficients (for heading hold)
     public static double kP = 0.5;
     public static double kI = 0.0;
     public static double kD = 0.05;
 
-    public static void initialize(HardwareMap hwMap, Telemetry telemetry) {
+    public void initialize(HardwareMap hwMap) {
         lf = hwMap.get(DcMotorEx.class, "left_front_motor");
         rf = hwMap.get(DcMotorEx.class, "right_front_motor");
         lb = hwMap.get(DcMotorEx.class, "left_back_motor");
@@ -81,18 +81,19 @@ public class DriveSubsystem {
         double rawStrafe =  gamepad.left_stick_x;   // left/right
         double rawTwist  = -gamepad.right_stick_x;  // rotation
 
-        double drive = Utils.applyDeadband(rawDrive, 0.05);
-        double strafe = Utils.applyDeadband(rawStrafe, 0.05);
-        double twist  = Utils.applyDeadband(rawTwist, 0.05);
+        double drive = Utils.applyDeadband(rawDrive, Deadband);
+        double strafe = Utils.applyDeadband(rawStrafe, Deadband);
+        double twist  = Utils.applyDeadband(rawTwist, Deadband);
 
-        if (Math.abs(twist) > 0.05) {
-            if (!wasTwisting) {
-                targetHeading = getHeading();
-                wasTwisting = true;
-            }
+        if (Math.abs(rawTwist) > Deadband) { // Use rawTwist to determine driver intent
+            targetHeading = getHeading(); // Continuously update target while twisting
+            wasTwisting = true;
         } else {
+            if (wasTwisting) {
+                targetHeading = getHeading(); // Lock current heading when stick released
+                wasTwisting = false;
+            }
             twist = headingPID.output(targetHeading, getHeading());
-            wasTwisting = false;
         }
 
         if (!FieldOriented) {
@@ -149,11 +150,7 @@ public class DriveSubsystem {
         }
     }
 
-    public void updateTelemetry() {
-        TelemetryUtils.update();
-    }
-
-    public static double getHeading() {
+    public double getHeading() {
         return imu.getRobotYawPitchRollAngles().getYaw(AngleUnit.RADIANS);
     }
 

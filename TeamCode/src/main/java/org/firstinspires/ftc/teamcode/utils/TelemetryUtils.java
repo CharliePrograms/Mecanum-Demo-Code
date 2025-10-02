@@ -13,7 +13,7 @@ public class TelemetryUtils {
     private static Telemetry dsTelemetry = null;
     private static Telemetry dashboardTelemetry = null;
 
-    public static void initialize                       (Telemetry opModeTelemetry) {
+    public static void initialize(Telemetry opModeTelemetry) {
         dsTelemetry = opModeTelemetry;
         dashboardTelemetry = FtcDashboard.getInstance().getTelemetry();
     }
